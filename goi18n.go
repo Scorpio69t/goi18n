@@ -1,49 +1,195 @@
 package goi18n
 
 import (
-	"context"
+	"fmt"
 	"sync"
+
+	"github.com/pelletier/go-toml"
+)
+
+var (
+	defaultLanguage = "zh"
 )
 
 type locale struct {
 	mu          sync.RWMutex
-	id          int64
+	id          int
 	lang        string
+	langDesc    string
 	translation map[string]string
 }
 
-type Goi18n struct {
-	Mu        sync.RWMutex
-	Langs     []string
-	LangDescs map[string]string
-	LocaleMap map[string]*locale
+type Option struct {
+	Path     string
+	Language string
 }
 
-func New() *Goi18n {
-	return &Goi18n{
-		Mu:        sync.RWMutex{},
-		Langs:     []string{},
-		LangDescs: map[string]string{},
-		LocaleMap: map[string]*locale{},
+type Goi18n struct {
+	mu        sync.RWMutex
+	langs     []string
+	langDescs map[string]string
+	localeMap map[string]*locale
+	option    *Option
+}
+
+func New(opt *Option) *Goi18n {
+	if opt == nil {
+		opt = DefaultOption()
+	}
+
+	g := &Goi18n{
+		mu:        sync.RWMutex{},
+		langs:     []string{},
+		langDescs: map[string]string{},
+		localeMap: map[string]*locale{},
+		option:    opt,
+	}
+
+	fmt.Printf("Goi18n.New: %#v\n", opt)
+
+	return g
+}
+
+// func (g *Goi18n) init(ctx context.Context) {
+
+// }
+
+// SetLangDesc sets the language description.
+func (g *Goi18n) SetLangDesc(lang string, desc string) {
+	g.langDescs[lang] = desc
+}
+
+// SetLanguage sets the language.
+func (g *Goi18n) SetLanguage(lang string, desc string) bool {
+	if g.IsExist(lang) {
+		g.langDescs[lang] = desc
+		if err := g.Reload(lang); err != nil {
+			return false
+		}
+		return true
+	} else {
+		return g.Add(&locale{lang: lang, langDesc: desc})
 	}
 }
 
-func (g *Goi18n) init(ctx context.Context) {
-
-}
-
-func (g *Goi18n) SetLangDesc(lang string, desc string) {
-	g.LangDescs[lang] = desc
-}
-
-func (g *Goi18n) SetLanguage(lang string, filename string, desc string) bool {
-	return true
-}
-
-func (g *Goi18n) Translate(lang string, key string) string {
-	return ""
+func (g *Goi18n) Translate(lang string, key string) (string, bool) {
+	if g.IsExist(lang) || g.Add(&locale{lang: lang}) {
+		return g.localeMap[lang].Get(key)
+	}
+	return "", false
 }
 
 func (g *Goi18n) GetLanguageLength() int {
-	return len(g.Langs)
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+	return len(g.langs)
+}
+
+func DefaultOption() *Option {
+	return &Option{
+		Path:     "i18n",
+		Language: defaultLanguage,
+	}
+}
+
+func (g *Goi18n) Add(lc *locale) bool {
+	if _, ok := g.localeMap[lc.lang]; ok {
+		return false
+	}
+
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if err := lc.Reload(g.option.Path); err != nil {
+		return false
+	}
+	lc.id = len(g.localeMap)
+	g.localeMap[lc.lang] = lc
+	g.langs = append(g.langs, lc.lang)
+	g.langDescs[lc.lang] = lc.langDesc
+	return true
+}
+
+// Reload locales
+func (g *Goi18n) Reload(langs ...string) error {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if len(langs) == 0 {
+		for _, lc := range g.localeMap {
+			lc.mu.Lock()
+			defer lc.mu.Unlock()
+			lc.Reload(g.option.Path)
+		}
+	} else {
+		for _, lang := range langs {
+			if lc, ok := g.localeMap[lang]; ok {
+				lc.mu.Lock()
+				defer lc.mu.Unlock()
+				err := lc.Reload(g.option.Path)
+				if err != nil {
+					return err
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+// ListLangs returns all languages.
+func (g *Goi18n) ListLangs() []string {
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+	langs := make([]string, len(g.langs))
+	copy(langs, g.langs)
+	return langs
+}
+
+// ListLangDescs returns all language descriptions.
+func (g *Goi18n) ListLangDescs() []string {
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+	langDescs := make([]string, len(g.langDescs))
+	for i, lang := range g.ListLangs() {
+		langDescs[i] = g.langDescs[lang]
+	}
+	return langDescs
+}
+
+// IsExist returns whether the language is exist.
+func (g *Goi18n) IsExist(lang string) bool {
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+	_, ok := g.localeMap[lang]
+	return ok
+}
+
+// IndexLang returns the index of the language.
+func (g *Goi18n) IndexLang(lang string) int {
+	if g.IsExist(lang) {
+		return g.localeMap[lang].id
+	}
+	return -1
+}
+
+func (l *locale) Reload(path string) error {
+	filename := fmt.Sprintf("%s/%s.toml", path, l.lang)
+
+	translation, err := toml.LoadFile(filename)
+	if err != nil {
+		return err
+	}
+
+	for key, value := range translation.ToMap() {
+		l.translation[key] = value.(string)
+	}
+	return nil
+}
+
+func (l *locale) Get(key string) (string, bool) {
+	l.mu.RLock()
+	defer l.mu.RUnlock()
+	if value, ok := l.translation[key]; ok {
+		return value, true
+	}
+	return "", false
 }
