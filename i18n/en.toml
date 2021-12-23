@@ -1,0 +1,3 @@
+call_content = "You have a call from Ouyu"
+msg_content = "You have a message from Ouyu"
+title = "Ouyu"
