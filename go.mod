@@ -1,4 +1,4 @@
-module goi18n
+module github.com/Scorpio69t/goi18n
 
 go 1.17
 
