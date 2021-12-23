@@ -1,6 +1,7 @@
 package goi18n
 
 import (
+	"errors"
 	"fmt"
 	"sync"
 
@@ -39,9 +40,9 @@ func New(opt *Option) *Goi18n {
 
 	g := &Goi18n{
 		mu:        sync.RWMutex{},
-		langs:     []string{},
-		langDescs: map[string]string{},
-		localeMap: map[string]*locale{},
+		langs:     make([]string, 0),
+		langDescs: make(map[string]string),
+		localeMap: make(map[string]*locale),
 		option:    opt,
 	}
 
@@ -64,6 +65,7 @@ func (g *Goi18n) SetLanguage(lang string, desc string) bool {
 	if g.IsExist(lang) {
 		g.langDescs[lang] = desc
 		if err := g.Reload(lang); err != nil {
+			fmt.Printf("Goi18n.SetLanguage: %v\n", err)
 			return false
 		}
 		return true
@@ -163,7 +165,7 @@ func (g *Goi18n) IsExist(lang string) bool {
 	return ok
 }
 
-// IndexLang returns the index of the language.
+// IndexLang returns the index of language.
 func (g *Goi18n) IndexLang(lang string) int {
 	if g.IsExist(lang) {
 		return g.localeMap[lang].id
@@ -171,12 +173,54 @@ func (g *Goi18n) IndexLang(lang string) int {
 	return -1
 }
 
+// GetLangByIndex Get language by index id.
+func (g *Goi18n) GetLangByIndex(index int) string {
+	if index < 0 || index >= len(g.langs) {
+		return ""
+	}
+
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+	return g.langs[index]
+}
+
+// GetLangDescByIndex Get language description by index id.
+func (g *Goi18n) GetDescriptionByIndex(index int) string {
+	if index < 0 || index >= len(g.langs) {
+		return ""
+	}
+
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+	return g.langDescs[g.langs[index]]
+}
+
+// GetLangDescByLang Get language description by language.
+func (g *Goi18n) GetDescriptionByLang(lang string) string {
+	if g.IsExist(lang) {
+		g.mu.RLock()
+		defer g.mu.RUnlock()
+		return g.langDescs[lang]
+	}
+	return ""
+}
+
+// Reload locale
 func (l *locale) Reload(path string) error {
 	filename := fmt.Sprintf("%s/%s.toml", path, l.lang)
 
 	translation, err := toml.LoadFile(filename)
 	if err != nil {
+		fmt.Printf("Goi18n.Reload: %v\n", err)
 		return err
+	}
+
+	if translation == nil {
+		return errors.New("translation is nil")
+	}
+
+	if l.translation == nil {
+		l.translation = make(map[string]string)
 	}
 
 	for key, value := range translation.ToMap() {
@@ -185,6 +229,7 @@ func (l *locale) Reload(path string) error {
 	return nil
 }
 
+// Get returns the translation of the key.
 func (l *locale) Get(key string) (string, bool) {
 	l.mu.RLock()
 	defer l.mu.RUnlock()
