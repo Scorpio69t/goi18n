@@ -76,8 +76,6 @@ func (g *Goi18n) SetLanguage(lang string, desc string) bool {
 
 // T returns the translation of key by default language.
 func (g *Goi18n) T(key string) string {
-	g.mu.RLock()
-	defer g.mu.RUnlock()
 	if g.IsExist(g.option.Language) || g.add(&locale{lang: g.option.Language}) {
 		value, _ := g.localeMap[g.option.Language].Get(key)
 		return value
