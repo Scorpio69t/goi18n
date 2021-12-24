@@ -78,7 +78,7 @@ func (g *Goi18n) Translate(lang string, key string) (string, bool) {
 	if g.IsExist(lang) || g.Add(&locale{lang: lang}) {
 		return g.localeMap[lang].Get(key)
 	}
-	return "", false
+	return key, false
 }
 
 func (g *Goi18n) GetLanguageLength() int {
