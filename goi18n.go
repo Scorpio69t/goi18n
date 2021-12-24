@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	defaultLanguage = "zh"
+	defaultLanguage = "en"
 )
 
 // locale is a language.
@@ -74,12 +74,21 @@ func (g *Goi18n) SetLanguage(lang string, desc string) bool {
 	}
 }
 
-// Translate translate the language.
-func (g *Goi18n) Translate(lang string, key string) (string, bool) {
+// T returns the translation of key by default language.
+func (g *Goi18n) T(key string) string {
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+	value, _ := g.localeMap[g.option.Language].Get(key)
+	return value
+}
+
+// Translate translate by given language.
+func (g *Goi18n) Translate(lang string, key string) string {
 	if g.IsExist(lang) || g.add(&locale{lang: lang}) {
-		return g.localeMap[lang].Get(key)
+		value, _ := g.localeMap[lang].Get(key)
+		return value
 	}
-	return key, false
+	return key
 }
 
 // GetLanguageLength returns the length of languages.
