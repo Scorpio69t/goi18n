@@ -236,5 +236,5 @@ func (l *locale) Get(key string) (string, bool) {
 	if value, ok := l.translation[key]; ok {
 		return value, true
 	}
-	return "", false
+	return key, false
 }
