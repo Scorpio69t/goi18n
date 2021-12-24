@@ -12,6 +12,7 @@ var (
 	defaultLanguage = "zh"
 )
 
+// locale is a language.
 type locale struct {
 	mu          sync.RWMutex
 	id          int
@@ -20,11 +21,13 @@ type locale struct {
 	translation map[string]string
 }
 
+// Option is the option of Goi18n.
 type Option struct {
 	Path     string
 	Language string
 }
 
+// Goi18n is a struct for i18n.
 type Goi18n struct {
 	mu        sync.RWMutex
 	langs     []string
@@ -33,6 +36,7 @@ type Goi18n struct {
 	option    *Option
 }
 
+// New creates a new Goi18n.
 func New(opt *Option) *Goi18n {
 	if opt == nil {
 		opt = DefaultOption()
@@ -51,10 +55,6 @@ func New(opt *Option) *Goi18n {
 	return g
 }
 
-// func (g *Goi18n) init(ctx context.Context) {
-
-// }
-
 // SetLangDesc sets the language description.
 func (g *Goi18n) SetLangDesc(lang string, desc string) {
 	g.langDescs[lang] = desc
@@ -70,23 +70,26 @@ func (g *Goi18n) SetLanguage(lang string, desc string) bool {
 		}
 		return true
 	} else {
-		return g.Add(&locale{lang: lang, langDesc: desc})
+		return g.add(&locale{lang: lang, langDesc: desc})
 	}
 }
 
+// Translate translate the language.
 func (g *Goi18n) Translate(lang string, key string) (string, bool) {
-	if g.IsExist(lang) || g.Add(&locale{lang: lang}) {
+	if g.IsExist(lang) || g.add(&locale{lang: lang}) {
 		return g.localeMap[lang].Get(key)
 	}
 	return key, false
 }
 
+// GetLanguageLength returns the length of languages.
 func (g *Goi18n) GetLanguageLength() int {
 	g.mu.RLock()
 	defer g.mu.RUnlock()
 	return len(g.langs)
 }
 
+// DefaultOption returns the default option.
 func DefaultOption() *Option {
 	return &Option{
 		Path:     "i18n",
@@ -94,7 +97,8 @@ func DefaultOption() *Option {
 	}
 }
 
-func (g *Goi18n) Add(lc *locale) bool {
+// add add a language.
+func (g *Goi18n) add(lc *locale) bool {
 	if _, ok := g.localeMap[lc.lang]; ok {
 		return false
 	}
