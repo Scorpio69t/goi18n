@@ -9,7 +9,7 @@ func TestGoi18n(t *testing.T) {
 	g := New(nil)
 	g.SetLanguage("zh", "中文")
 	g.SetLanguage("en", "English")
-	msg, res := g.Translate("zh", "title")
-	t.Logf("msg: %s, res: %v", msg, res)
-	fmt.Printf("msg: %s, res: %v", msg, res)
+	msg := g.Translate("zh", "title")
+	t.Logf("msg: %s", msg)
+	fmt.Printf("msg: %s", msg)
 }
