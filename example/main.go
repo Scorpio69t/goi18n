@@ -11,7 +11,7 @@ func main() {
 	// Goi18n.New: &{Path:main.go Language:zh}
 	g := goi18n.New(&goi18n.Option{
 		Path:     "i18n",
-		Language: "zh",
+		Language: "en",
 	})
 	// fmt.Printf("Goi18n.New: %#v\n", g)
 	// chinese

@@ -78,8 +78,11 @@ func (g *Goi18n) SetLanguage(lang string, desc string) bool {
 func (g *Goi18n) T(key string) string {
 	g.mu.RLock()
 	defer g.mu.RUnlock()
-	value, _ := g.localeMap[g.option.Language].Get(key)
-	return value
+	if g.IsExist(g.option.Language) || g.add(&locale{lang: g.option.Language}) {
+		value, _ := g.localeMap[g.option.Language].Get(key)
+		return value
+	}
+	return key
 }
 
 // Translate translate by given language.
